@@ -25,9 +25,10 @@ def affine_grid(theta: torch.tensor,
   x = torch.linspace(-1, 1, W)
   y = torch.linspace(-1, 1, H)
   xt, yt = torch.meshgrid(x, y)
-  G = torch.stack([xt.flatten(), yt.flatten(), np.ones(H*W)])
-  G = torch.resize(G, (batch_size, 2, H*W)).to(device)
-  TG = theta @ G 
+  G = torch.stack([xt.flatten(), yt.flatten(), torch.ones(H*W)]).to(device)
+  G = G.unsqueeze(0)
+  G = G.repeat((batch_size, 1, 1))
+  TG = theta @ G
   TG = torch.reshape(TG, (batch_size, 2, H, W))
   TG = torch.moveaxis(TG, 1, -1)
   return TG
@@ -52,26 +53,26 @@ def grid_sample(input: torch.tensor,
   xs, ys = grid[:, :, :, 0], grid[:, :, :, 1]
   x = (xs + 1.0) * W/2.0 
   y = (ys + 1.0) * H/2.0
-  x0 = torch.floor(x).astype(np.int64)
-  x1 = torch.ceil(x).astype(np.int64)
-  y0 = torch.floor(y).astype(np.int64)
-  y1 = torch.ceil(y).astype(np.int64)
+  x0 = torch.floor(x).to(torch.int64)
+  x1 = torch.ceil(x).to(torch.int64)
+  y0 = torch.floor(y).to(torch.int64)
+  y1 = torch.ceil(y).to(torch.int64)
   x0 = torch.clip(x0, 0, W-1)
-  x1 = np.clip(x1, 0, W-1)
-  y0 = np.clip(y0, 0, H-1)
-  y1 = np.clip(y1, 0, H-1)
-  Ia = input[np.arange(batch_size)[:,None,None], y0, x0]
-  Ib = input[np.arange(batch_size)[:,None,None], y1, x0]
-  Ic = input[np.arange(batch_size)[:,None,None], y0, x1]
-  Id = input[np.arange(batch_size)[:,None,None], y1, x1]
+  x1 = torch.clip(x1, 0, W-1)
+  y0 = torch.clip(y0, 0, H-1)
+  y1 = torch.clip(y1, 0, H-1)
+  Ia = input[torch.arange(batch_size)[:,None,None], y0, x0]
+  Ib = input[torch.arange(batch_size)[:,None,None], y1, x0]
+  Ic = input[torch.arange(batch_size)[:,None,None], y0, x1]
+  Id = input[torch.arange(batch_size)[:,None,None], y1, x1]
   wa = (x1-x) * (y1-y)
   wb = (x1-x) * (y-y0)
   wc = (x-x0) * (y1-y)
   wd = (x-x0) * (y-y0)
-  wa = np.expand_dims(wa, axis=3)
-  wb = np.expand_dims(wb, axis=3)
-  wc = np.expand_dims(wc, axis=3)
-  wd = np.expand_dims(wd, axis=3)
+  wa = wa.unsqueeze(3).to(device)
+  wb = wb.unsqueeze(3).to(device)
+  wc = wc.unsqueeze(3).to(device)
+  wd = wd.unsqueeze(3).to(device)
   return wa*Ia + wb*Ib + wc*Ic + wd*Id
 
 
