@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
+from utils import affine_grid, grid_sample, affine_grid_withDeformation
 
 
 class DoubleConv(nn.Module):
@@ -178,7 +179,36 @@ class U_Net(nn.Module):
     return self.final_section(x)
 
 
+class SpatialTransformer(nn.Module):
+  """
+  Module instance of the Spatial Transformer Network.
+  Takes the deformation matrix from the upstream network and the input batch of
+  images to be aligned. Performs Bi-Linear Interpolation to give result. 
+  """
+  def __init__(self):
+    super().__init__()
+
+  def forward(self, deformation_matrix, input_batch):
+    TG = affine_grid_withDeformation(deformation_matrix)
+    out = grid_sample(input_batch, TG)
+    return out
+
+
 class AttentionAlign(nn.Module):
+  """
+  Network to align images, consisting of an upstream AutoEncoder as the 
+  Localisation Net, and a Spatial Transformer as the Grid Generator and Sampler.
+  Takes batch of images with 2 channels: first channel for the images to be 
+  aligned, second for the baseine images to align to. Returns a 3 channel 
+  output: first channel for the aligned image batch, next 2 for the 
+  deformation matrices.
+  Args:
+    ae_type: Type of Autoencoder
+    in_channels: Number of channels in input to AE.
+    out_channels: Number of channels in AE output.
+    features: channels in the AE stages
+    device: torch.device
+  """
   def __init__(self, 
                ae_type: str='UNet',
                in_channels: int=2, 
@@ -186,10 +216,18 @@ class AttentionAlign(nn.Module):
                features: list=[16, 32, 32, 32],
                device: torch.device=torch.device('cpu')) -> None:
     super().__init__()
-    if ae_type is 'UNet':
-      self.autoencoder = UNet(in_channels, out_channels, features)
-    # elif ae_type is 'LinkNet':
+    if ae_type == 'UNet':
+      self.autoencoder = UNet(in_channels, out_channels, features).to(device)
+    # elif ae_type == 'LinkNet':
     #   self.autoencoder = LinkNet(in_channels, out_channels, features)
     # else:
     #   self.autoencoder = AutoEncoder(in_channels, out_channels, features)
+    self.spatial_transformer = SpatialTransformer().to(device)
 
+  def forward(self, x):
+    input_images, baseline_images = x[:, 0:1, :, :], x[:, 1:, :, :]
+    deformation_matrix = self.autoencoder(x)
+    aligned_images = self.spatial_transformer(deformation_matrix, input_images)
+    return torch.cat([aligned_images, deformation_matrix], dim=1)
+
+    
