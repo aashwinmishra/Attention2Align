@@ -173,3 +173,16 @@ def grid_sample_np(input: np.array, grid: np.array) -> np.array:
   wd = np.expand_dims(wd, axis=3)
   return wa*Ia + wb*Ib + wc*Ic + wd*Id
 
+
+def get_data(path: str) -> np.array:
+  """
+  Reads an image stack at location path, converts all images in stack to float foormat and returns.
+  Args:
+    path: location of images
+  Returns:
+    Numpy array of image stack
+  """
+  im = io.imread(path)
+  im = ski.img_as_float(im)
+  assert len(im.shape) == 3
+  return im
