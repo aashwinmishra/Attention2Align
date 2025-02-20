@@ -20,4 +20,18 @@ def TV(img: torch.tensor) -> float:
   res2 = diff2.abs().sum()
   score = res1 + res2
   return score
-  
+
+
+def DoM(img: torch.tensor) -> float:
+  """
+  Computes the Difference Of differences in a Median filtered image 
+  Metric of a given image.
+  Args:
+    img: input image as a tensor
+  Returns:
+    float value of the metric.
+  """  
+  diffx = img[2:, :] + img[:2, :] - 2 * img[:, :]
+  pass
+
+
