@@ -3,6 +3,22 @@ from PIL import Image
 import torch
 
 
+def get_devices() -> torch.device:
+  """
+  Returns gpu device if available, else cpu
+  """
+  return torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+
+def set_seeds(seed: int = 42):
+  """
+  Sets torch seeds for reproducability.
+  """
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  os.environ["PYTHONHASHSEED"] = str(seed)
+
+
 def affine_grid_withDeformation(deformation_matrix: torch.tensor,
                                 device: torch.device=None) -> torch.tensor:
   """
